@@ -6,6 +6,7 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [toasts, setToasts] = useState([]);
+  const [discountPercent, setDiscountPercent] = useState(0); // 0-100
 
   useEffect(() => {
     const saved = localStorage.getItem("rollbox-cart");
@@ -40,20 +41,35 @@ export function CartProvider({ children }) {
     setCart((prev) => prev.filter((c) => c.key !== key));
   }, []);
 
-  const clearCart = useCallback(() => setCart([]), []);
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setDiscountPercent(0);
+  }, []);
+
+  const setDiscount = useCallback((val) => {
+    const num = Math.max(0, Math.min(100, parseInt(val) || 0));
+    setDiscountPercent(num);
+  }, []);
 
   const showToast = useCallback((message) => {
-    const id = Date.now();
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setToasts((prev) => [...prev, { id, message }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 2500);
   }, []);
 
   const totalItems = cart.reduce((s, c) => s + c.qty, 0);
-  const totalPrice = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const discountAmount = discountPercent > 0 ? Math.round(subtotal * (discountPercent / 100)) : 0;
+  const totalPrice = subtotal - discountAmount;
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, updateQty, removeItem, clearCart, totalItems, totalPrice, toasts }}
+      value={{
+        cart, addToCart, updateQty, removeItem, clearCart,
+        totalItems, totalPrice, subtotal,
+        discountPercent, discountAmount, setDiscount,
+        toasts, setCart,
+      }}
     >
       {children}
     </CartContext.Provider>

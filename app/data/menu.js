@@ -1,4 +1,4 @@
-// Complete menu data for Roll Box cafe
+// Complete menu data for Taste N' RoLLs cafe
 // Extracted from actual menu images
 
 export const menuData = [
@@ -8,6 +8,7 @@ export const menuData = [
     icon: "🌿",
     description: "Freshly made rolls with premium ingredients",
     type: "half-full",
+    addonEligible: true,
     items: [
       { id: "vr1", name: "Masala Aloo", half: 60, full: 90, veg: true },
       { id: "vr2", name: "Cheese Aloo", half: 80, full: 110, veg: true },
@@ -33,6 +34,7 @@ export const menuData = [
     icon: "🥙",
     description: "Delicious soya chaap wrapped in perfection",
     type: "half-full",
+    addonEligible: true,
     items: [
       { id: "cr1", name: "Soya Chaap Roll", half: 90, full: 120, veg: true },
       { id: "cr2", name: "Malai Chaap Roll", half: 130, full: 170, veg: true },
@@ -41,11 +43,24 @@ export const menuData = [
     ],
   },
   {
+    id: "egg-rolls",
+    name: "Egg Rolls",
+    icon: "🥚",
+    description: "Classic egg rolls, simple and satisfying",
+    type: "half-full",
+    addonEligible: true,
+    items: [
+      { id: "er1", name: "Egg Roll", half: 70, full: 80, veg: false },
+      { id: "er2", name: "Triple Egg Roll", half: null, full: 90, veg: false },
+    ],
+  },
+  {
     id: "chicken-rolls",
     name: "Chicken Rolls",
     icon: "🍗",
     description: "Juicy chicken rolls loaded with flavor",
     type: "half-full",
+    addonEligible: true,
     items: [
       { id: "ckr1", name: "Chicken Roll", half: 110, full: 160, veg: false },
       { id: "ckr2", name: "Malai Chicken Roll", half: 130, full: 180, veg: false },
@@ -55,17 +70,6 @@ export const menuData = [
       { id: "ckr6", name: "Tandoori Chicken Roll", half: 130, full: 180, veg: false },
       { id: "ckr7", name: "Afghani Chicken Roll", half: 130, full: 190, veg: false },
       { id: "ckr8", name: "Italian Crunchy Roll", half: 130, full: 180, veg: false },
-    ],
-  },
-  {
-    id: "egg-rolls",
-    name: "Egg Rolls",
-    icon: "🥚",
-    description: "Classic egg rolls, simple and satisfying",
-    type: "half-full",
-    items: [
-      { id: "er1", name: "Egg Roll", half: 70, full: 80, veg: false },
-      { id: "er2", name: "Triple Egg Roll", half: null, full: 90, veg: false },
     ],
   },
   {
@@ -111,58 +115,6 @@ export const menuData = [
     ],
   },
   {
-    id: "momos",
-    name: "Momos",
-    icon: "🥟",
-    description: "Steamed & fried momos with spicy chutney",
-    type: "dual-label",
-    labels: ["Veg", "Paneer"],
-    items: [
-      { id: "mm1", name: "Steam Momos", price1: 90, price2: 100, veg: true },
-      { id: "mm2", name: "Fried Momos", price1: 100, price2: 120, veg: true },
-      { id: "mm3", name: "Kurkure Momos", price1: 120, price2: 140, veg: true },
-    ],
-  },
-  {
-    id: "pan-fried-momos",
-    name: "Pan Fried Momos",
-    icon: "🥟",
-    description: "Pan fried momos with bold flavors",
-    type: "single",
-    items: [
-      { id: "pfm1", name: "Veg Chilli Pan Fried Momos", price: 120, veg: true },
-      { id: "pfm2", name: "Veg Tandoori Pan Fried Momos", price: 150, veg: true },
-      { id: "pfm3", name: "Veg Malai Pan Fried Momos", price: 150, veg: true },
-      { id: "pfm4", name: "Paneer Chilli Pan Fried Momos", price: 160, veg: true },
-      { id: "pfm5", name: "Paneer Tandoori Pan Fried Momos", price: 180, veg: true },
-      { id: "pfm6", name: "Paneer Malai Pan Fried Momos", price: 180, veg: true },
-    ],
-  },
-  {
-    id: "chinese-special",
-    name: "Chinese Special",
-    icon: "🥡",
-    description: "Indo-Chinese delicacies with bold spices",
-    type: "half-full",
-    items: [
-      { id: "cs1", name: "Chilli Potato", half: 100, full: 150, veg: true },
-      { id: "cs2", name: "Honey Chilli Potato", half: 120, full: 170, veg: true },
-      { id: "cs3", name: "Chilli Paneer (Dry)", half: 180, full: 260, veg: true },
-      { id: "cs4", name: "Chilli Paneer (Gravy)", half: 200, full: 280, veg: true },
-    ],
-  },
-  {
-    id: "nuggets",
-    name: "Nuggets",
-    icon: "🍗",
-    description: "Crunchy nuggets perfect for snacking",
-    type: "dual-label",
-    labels: ["9 Pieces", "18 Pieces"],
-    items: [
-      { id: "ng1", name: "Crunchy Paneer Nuggets", price1: 150, price2: 260, veg: true },
-    ],
-  },
-  {
     id: "pasta",
     name: "Pasta",
     icon: "🍝",
@@ -193,6 +145,58 @@ export const menuData = [
     ],
   },
   {
+    id: "chinese-special",
+    name: "Chinese Special",
+    icon: "🥡",
+    description: "Indo-Chinese delicacies with bold spices",
+    type: "half-full",
+    items: [
+      { id: "cs1", name: "Chilli Potato", half: 100, full: 150, veg: true },
+      { id: "cs2", name: "Honey Chilli Potato", half: 120, full: 170, veg: true },
+      { id: "cs3", name: "Chilli Paneer (Dry)", half: 180, full: 260, veg: true },
+      { id: "cs4", name: "Chilli Paneer (Gravy)", half: 200, full: 280, veg: true },
+    ],
+  },
+  {
+    id: "nuggets",
+    name: "Nuggets",
+    icon: "🍗",
+    description: "Crunchy nuggets perfect for snacking",
+    type: "dual-label",
+    labels: ["9 Pieces", "18 Pieces"],
+    items: [
+      { id: "ng1", name: "Crunchy Paneer Nuggets", price1: 150, price2: 260, veg: true },
+    ],
+  },
+  {
+    id: "momos",
+    name: "Momos",
+    icon: "🥟",
+    description: "Steamed & fried momos with spicy chutney",
+    type: "dual-label",
+    labels: ["Veg", "Paneer"],
+    items: [
+      { id: "mm1", name: "Steam Momos", price1: 90, price2: 100, veg: true },
+      { id: "mm2", name: "Fried Momos", price1: 100, price2: 120, veg: true },
+      { id: "mm3", name: "Kurkure Momos", price1: 120, price2: 140, veg: true },
+    ],
+  },
+  {
+    id: "pan-fried-momos",
+    name: "Pan Fried Momos",
+    icon: "🥟",
+    description: "Pan fried momos with bold flavors",
+    type: "single",
+    items: [
+      { id: "pfm1", name: "Veg Chilli Pan Fried Momos", price: 120, veg: true },
+      { id: "pfm2", name: "Veg Tandoori Pan Fried Momos", price: 150, veg: true },
+      { id: "pfm3", name: "Veg Malai Pan Fried Momos", price: 150, veg: true },
+      { id: "pfm4", name: "Paneer Chilli Pan Fried Momos", price: 160, veg: true },
+      { id: "pfm5", name: "Paneer Tandoori Pan Fried Momos", price: 180, veg: true },
+      { id: "pfm6", name: "Paneer Malai Pan Fried Momos", price: 180, veg: true },
+    ],
+  },
+  {
     id: "basic-pizza",
     name: "Basic Pizza",
     icon: "🍕",
@@ -204,10 +208,10 @@ export const menuData = [
       { id: "bp2", name: "Capsicum", regular: 99, medium: 190, large: 280, veg: true },
       { id: "bp3", name: "Tomato", regular: 99, medium: 190, large: 280, veg: true },
       { id: "bp4", name: "Sweet Corn", regular: 99, medium: 220, large: 300, veg: true },
-      { id: "bp5", name: "Onion + Capsicum", regular: 110, medium: 230, large: 320, veg: true },
-      { id: "bp6", name: "Onion + Mushroom", regular: 119, medium: 179, large: 359, veg: true },
-      { id: "bp7", name: "Onion + Tomato", regular: 129, medium: 199, large: 379, veg: true },
-      { id: "bp8", name: "Capsicum + Tomato", regular: 109, medium: 169, large: 249, veg: true },
+      { id: "bp5", name: "Onion + Capsicum", regular: 109, medium: 239, large: 339, veg: true },
+      { id: "bp6", name: "Onion + Mushroom", regular: 109, medium: 239, large: 339, veg: true },
+      { id: "bp7", name: "Onion + Tomato", regular: 109, medium: 239, large: 339, veg: true },
+      { id: "bp8", name: "Capsicum + Tomato", regular: 109, medium: 239, large: 339, veg: true },
       { id: "bp9", name: "Onion + Paneer", regular: 119, medium: 249, large: 359, veg: true },
       { id: "bp10", name: "Peppy Paneer", regular: 119, medium: 249, large: 369, veg: true },
       { id: "bp11", name: "Capsicum + Paneer", regular: 129, medium: 259, large: 379, veg: true },
@@ -226,7 +230,7 @@ export const menuData = [
     items: [
       { id: "ap1", name: "Farm House Pizza", description: "Onion, capsicum, corn, paneer, tomato", regular: 159, medium: 309, large: 499, veg: true },
       { id: "ap2", name: "Amazing Italian Pizza", description: "Capsicum, tomato, jalapeno, paneer, black olive, extra cheese", regular: 189, medium: 349, large: 549, veg: true },
-      { id: "ap3", name: "Roll Box Spl", description: "Baby corn, onion, capsicum, red paprika, black olives, jalapeno, paneer, extra cheese", regular: 199, medium: 369, large: 579, veg: true },
+      { id: "ap3", name: "TNR Spl", description: "Baby corn, onion, capsicum, red paprika, black olives, jalapeno, paneer, extra cheese", regular: 199, medium: 369, large: 579, veg: true },
       { id: "ap4", name: "Tandoori Bites Pizza", description: "Onion, corn, paneer, tandoori sauce", regular: 169, medium: 369, large: 499, veg: true },
       { id: "ap5", name: "Makhani Paneer Pizza", description: "Makhani sauce, paneer, onion, capsicum", regular: 159, medium: 349, large: 479, veg: true },
       { id: "ap6", name: "Spl Paneer Tandoori Pizza", description: "Spl tandoori, paneer, onion, corn, jalapeno, red paprika, extra cheese", regular: 189, medium: 399, large: 519, veg: true },
@@ -279,6 +283,26 @@ export const menuData = [
       { id: "bv7", name: "Kit-Kat Shake", price1: 90, price2: 100, veg: true },
     ],
   },
+  {
+    id: "soft-drinks",
+    name: "Soft Drinks",
+    icon: "🥤",
+    description: "Chilled cold drinks & energy drinks",
+    type: "single",
+    items: [
+      { id: "sd1", name: "Campa (500ml)", price: 20, veg: true },
+      { id: "sd2", name: "Coke (250ml)", price: 20, veg: true },
+      { id: "sd3", name: "Dew (250ml)", price: 20, veg: true },
+      { id: "sd4", name: "Sprite (250ml)", price: 20, veg: true },
+      { id: "sd5", name: "Campa Energy Drink", price: 30, veg: true },
+      { id: "sd6", name: "Coke (500ml)", price: 35, veg: true },
+      { id: "sd7", name: "Dew (500ml)", price: 40, veg: true },
+      { id: "sd8", name: "Hell", price: 70, veg: true },
+      { id: "sd9", name: "Coke Diet Can", price: 70, veg: true },
+      { id: "sd10", name: "Monster", price: 120, veg: true },
+      { id: "sd11", name: "Red Bull", price: 125, veg: true },
+    ],
+  },
 ];
 
 // Pizza add-on prices by size (shown as popup when ordering pizza)
@@ -287,7 +311,7 @@ export const pizzaAddOns = [
   { id: "pao2", name: "Extra Topping", regular: 20, medium: 30, large: 40 },
 ];
 
-// General add-ons (shown as popup before checkout)
+// General add-ons (shown inline when adding rolls/burgers/sandwiches)
 export const generalAddOns = [
   { id: "ao1", name: "Egg", price: 10, veg: false },
   { id: "ao2", name: "Mayonnaise", price: 10, veg: true },
@@ -300,30 +324,30 @@ export const generalAddOns = [
 // IDs of pizza categories (used to trigger pizza add-on popup)
 export const pizzaCategoryIds = ["basic-pizza", "amazing-pizza", "combo-pizza"];
 
-export const categoryGroups = [
+// Accordion menu structure — defines the order and grouping
+// "Rolls" is special: it has sub-sections (sub-tabs)
+export const accordionMenu = [
   {
-    title: "Rolls Special",
-    categories: ["veg-rolls", "chaap-rolls", "chicken-rolls", "egg-rolls"],
+    id: "rolls",
+    name: "Rolls",
+    icon: "🌯",
+    subSections: [
+      { id: "veg-rolls", name: "Veg Rolls" },
+      { id: "chaap-rolls", name: "Chaap Rolls" },
+      { id: "egg-rolls", name: "Egg Rolls" },
+      { id: "chicken-rolls", name: "Chicken Rolls" },
+    ],
   },
-  {
-    title: "Crispy & Loaded",
-    categories: ["burgers", "sandwiches", "fries"],
-  },
-  {
-    title: "Momos & Street Specials",
-    categories: ["momos", "pan-fried-momos", "chinese-special", "nuggets"],
-  },
-  {
-    title: "Pasta & Maggi",
-    categories: ["pasta", "maggi"],
-  },
-  {
-    title: "Pizza",
-    categories: ["basic-pizza", "amazing-pizza", "combo-pizza"],
-  },
-  {
-    title: "Drinks & Beverages",
-    categories: ["mojitos", "beverages"],
-  },
+  { id: "burgers", name: "Burgers", icon: "🍔", categories: ["burgers"] },
+  { id: "sandwiches", name: "Sandwiches", icon: "🥪", categories: ["sandwiches"] },
+  { id: "fries", name: "Fries", icon: "🍟", categories: ["fries"] },
+  { id: "pasta", name: "Pasta", icon: "🍝", categories: ["pasta"] },
+  { id: "maggi", name: "Maggi", icon: "🍜", categories: ["maggi"] },
+  { id: "chinese-special", name: "Chinese Special", icon: "🥡", categories: ["chinese-special"] },
+  { id: "nuggets", name: "Nuggets", icon: "🍗", categories: ["nuggets"] },
+  { id: "momos-section", name: "Momos", icon: "🥟", categories: ["momos", "pan-fried-momos"] },
+  { id: "pizza-section", name: "Pizza", icon: "🍕", categories: ["basic-pizza", "amazing-pizza", "combo-pizza"] },
+  { id: "mojitos-section", name: "Mojitos", icon: "🍹", categories: ["mojitos"] },
+  { id: "beverages-section", name: "Beverages", icon: "🧊", categories: ["beverages"] },
+  { id: "soft-drinks-section", name: "Soft Drinks", icon: "🧃", categories: ["soft-drinks"] },
 ];
-

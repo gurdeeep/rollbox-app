@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
 import { useCart } from "../context/CartContext";
-import { pizzaAddOns } from "../data/menu";
+import { pizzaAddOns, generalAddOns } from "../data/menu";
 
-export default function MenuItem({ item, categoryType, labels, isPizza }) {
+export default function MenuItem({ item, categoryType, labels, isPizza, addonEligible }) {
   const { addToCart, cart } = useCart();
-  const [popup, setPopup] = useState(null); // { variant, price, sizeKey }
+  const [popup, setPopup] = useState(null); // { variant, price, sizeKey, type: 'pizza' | 'general' }
   const [selectedAddOns, setSelectedAddOns] = useState({});
 
   const isInCart = (variant) => cart.some((c) => c.key === `${item.id}-${variant}`);
@@ -13,11 +13,18 @@ export default function MenuItem({ item, categoryType, labels, isPizza }) {
   const handleAdd = (variant, price) => {
     if (price === null || price === undefined) return;
 
-    // If this is a pizza item, show pizza add-on popup
+    // Pizza items — show pizza add-on popup
     if (isPizza && categoryType === "triple-size") {
-      const sizeKey = variant; // "regular", "medium", or "large"
+      const sizeKey = variant;
       setSelectedAddOns({});
-      setPopup({ variant, price, sizeKey });
+      setPopup({ variant, price, sizeKey, type: "pizza" });
+      return;
+    }
+
+    // Addon-eligible items (rolls, burgers, sandwiches) — show general addon popup
+    if (addonEligible) {
+      setSelectedAddOns({});
+      setPopup({ variant, price, type: "general" });
       return;
     }
 
@@ -28,13 +35,19 @@ export default function MenuItem({ item, categoryType, labels, isPizza }) {
     setSelectedAddOns((prev) => ({ ...prev, [addOnId]: !prev[addOnId] }));
   };
 
+  const changeAddOnQty = (id, delta) => {
+    setSelectedAddOns((prev) => {
+      const current = prev[id] || 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, [id]: next };
+    });
+  };
+
+  // Confirm pizza order with add-ons
   const confirmPizzaOrder = () => {
     const { variant, price, sizeKey } = popup;
-
-    // Add the pizza itself
     addToCart({ id: item.id, name: item.name, variant, price });
 
-    // Add selected pizza add-ons
     const sizeLabel = sizeKey === "regular" ? "Regular" : sizeKey === "medium" ? "Medium" : "Large";
     pizzaAddOns.forEach((ao) => {
       if (selectedAddOns[ao.id]) {
@@ -44,6 +57,29 @@ export default function MenuItem({ item, categoryType, labels, isPizza }) {
           variant: sizeKey,
           price: ao[sizeKey],
         });
+      }
+    });
+
+    setPopup(null);
+    setSelectedAddOns({});
+  };
+
+  // Confirm general add-on order (rolls, burgers, sandwiches)
+  const confirmGeneralOrder = () => {
+    const { variant, price } = popup;
+    addToCart({ id: item.id, name: item.name, variant, price });
+
+    generalAddOns.forEach((ao) => {
+      const qty = selectedAddOns[ao.id] || 0;
+      if (qty > 0) {
+        for (let i = 0; i < qty; i++) {
+          addToCart({
+            id: `${item.id}-${ao.id}`,
+            name: `${ao.name} (${item.name})`,
+            variant: "add-on",
+            price: ao.price,
+          });
+        }
       }
     });
 
@@ -165,9 +201,14 @@ export default function MenuItem({ item, categoryType, labels, isPizza }) {
 
   const sizeLabel = popup?.sizeKey === "regular" ? "Regular" : popup?.sizeKey === "medium" ? "Medium" : "Large";
 
+  // Calculate general add-on total
+  const generalAddOnTotal = popup?.type === "general"
+    ? generalAddOns.reduce((sum, ao) => sum + (selectedAddOns[ao.id] || 0) * ao.price, 0)
+    : 0;
+
   return (
     <>
-      <div className="menu-item">
+      <div className={`menu-item ${item.veg ? "veg-item" : "nonveg-item"}`}>
         <div className="menu-item-top">
           <span className="menu-item-name">{item.name}</span>
           <span className={item.veg ? "veg-badge" : "nonveg-badge"}></span>
@@ -177,7 +218,7 @@ export default function MenuItem({ item, categoryType, labels, isPizza }) {
       </div>
 
       {/* Pizza Add-On Popup */}
-      {popup && (
+      {popup && popup.type === "pizza" && (
         <div className="addon-overlay" onClick={skipAddOns}>
           <div className="addon-modal" onClick={(e) => e.stopPropagation()}>
             <button className="qr-close" onClick={skipAddOns}>✕</button>
@@ -213,6 +254,62 @@ export default function MenuItem({ item, categoryType, labels, isPizza }) {
               </button>
               <button className="btn-primary" onClick={confirmPizzaOrder} style={{ flex: 1 }}>
                 {Object.values(selectedAddOns).some(Boolean) ? "Add with Extras" : "Add to Cart"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* General Add-On Popup (for rolls, burgers, sandwiches) */}
+      {popup && popup.type === "general" && (
+        <div className="addon-overlay" onClick={skipAddOns}>
+          <div className="addon-modal addon-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <button className="qr-close" onClick={skipAddOns}>✕</button>
+            <div className="addon-modal-icon">➕</div>
+            <h3>Any add-ons?</h3>
+            <p className="addon-modal-sub">
+              <strong>{item.name}</strong> — {popup.variant} (₹{popup.price})
+            </p>
+            <p className="addon-modal-hint">Add extras to this item</p>
+
+            <div className="addon-options">
+              {generalAddOns.map((ao) => {
+                const qty = selectedAddOns[ao.id] || 0;
+                return (
+                  <div key={ao.id} className={`addon-option-row ${qty > 0 ? "selected" : ""}`}>
+                    <div className="addon-row-left">
+                      <span className={ao.veg ? "veg-badge" : "nonveg-badge"} style={{ width: 14, height: 14, borderWidth: 1.5 }}></span>
+                      <span className="addon-option-name">{ao.name}</span>
+                    </div>
+                    <span className="addon-option-price">₹{ao.price}</span>
+                    {qty === 0 ? (
+                      <button className="addon-add-btn" onClick={() => changeAddOnQty(ao.id, 1)}>
+                        ADD
+                      </button>
+                    ) : (
+                      <div className="addon-qty-controls">
+                        <button onClick={() => changeAddOnQty(ao.id, -1)}>−</button>
+                        <span>{qty}</span>
+                        <button onClick={() => changeAddOnQty(ao.id, 1)}>+</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {generalAddOnTotal > 0 && (
+              <div className="addon-total">
+                Add-ons total: <strong>₹{generalAddOnTotal}</strong>
+              </div>
+            )}
+
+            <div className="addon-modal-actions">
+              <button className="btn-secondary" onClick={skipAddOns} style={{ flex: 1 }}>
+                No Extras
+              </button>
+              <button className="btn-primary" onClick={confirmGeneralOrder} style={{ flex: 1 }}>
+                {generalAddOnTotal > 0 ? `Add with ₹${generalAddOnTotal} Extras` : "Add to Cart"}
               </button>
             </div>
           </div>

@@ -1,14 +1,24 @@
 "use client";
-import { Suspense, useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useCart } from "../context/CartContext";
+
+const SHOP_NAME = "Taste N' RoLLs";
+const SHOP_ADDRESS = "Shop No. 168, Opp. Bus Stand Parking Gate, Sampla - Jhajjar Road, Near Bus Stand Sampla, 124501";
+const SHOP_PHONE = "949-949-8323";
+const SHOP_ENQUIRY = "870-850-9490";
+const SHOP_TAGLINE = "Eat Healthy. Be Healthy.";
 
 function ReceiptContent() {
   const params = useSearchParams();
+  const router = useRouter();
+  const { setCart, setDiscount } = useCart();
   const orderId = params.get("id") || "N/A";
   const method = params.get("method") || "Cash";
   const [order, setOrder] = useState(null);
-  const receiptRef = useRef(null);
+  const [printMode, setPrintMode] = useState(null); // null, 'kitchen', 'combined'
+  const printTriggered = useRef(false);
 
   useEffect(() => {
     try {
@@ -17,12 +27,28 @@ function ReceiptContent() {
     } catch {}
   }, []);
 
+  // Use effect to trigger print AFTER React has re-rendered with the new printMode
+  useEffect(() => {
+    if (printMode && !printTriggered.current) {
+      printTriggered.current = true;
+      // Wait for browser to paint the new layout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.print();
+          // Reset after print dialog closes
+          setPrintMode(null);
+          printTriggered.current = false;
+        });
+      });
+    }
+  }, [printMode]);
+
   const ownerPhone = process.env.NEXT_PUBLIC_OWNER_PHONE || "";
 
   // Build WhatsApp message text
   const buildSlipText = () => {
     if (!order) return "";
-    let text = `🥡 *ROLL BOX*\n`;
+    let text = `🥡 *${SHOP_NAME}*\n`;
     text += `━━━━━━━━━━━━━━━\n`;
     text += `📋 *Order Slip*\n`;
     text += `🆔 ${orderId}\n`;
@@ -34,6 +60,10 @@ function ReceiptContent() {
       text += `▸ ${item.name} (${item.variant}) ×${item.qty} — ₹${item.price * item.qty}\n`;
     });
     text += `━━━━━━━━━━━━━━━\n`;
+    if (order.discountPercent && order.discountAmount) {
+      text += `📋 Subtotal: ₹${order.subtotal}\n`;
+      text += `🏷️ Discount (${order.discountPercent}%): −₹${order.discountAmount}\n`;
+    }
     text += `💰 *Total: ₹${order.total}*\n`;
     text += `💳 Payment: ${method}\n`;
     text += `━━━━━━━━━━━━━━━\n`;
@@ -43,93 +73,262 @@ function ReceiptContent() {
 
   const sendWhatsApp = (phone) => {
     const text = encodeURIComponent(buildSlipText());
-    // Clean phone number
     let cleanPhone = phone.replace(/\D/g, "");
     if (cleanPhone.startsWith("0")) cleanPhone = "91" + cleanPhone.slice(1);
     if (!cleanPhone.startsWith("91") && cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
     window.open(`https://wa.me/${cleanPhone}?text=${text}`, "_blank");
   };
 
-  const handlePrint = () => {
-    window.print();
+  // Print Kitchen Slip only
+  const printKitchenOnly = () => {
+    printTriggered.current = false;
+    setPrintMode("kitchen");
   };
+
+  // Print Kitchen + Bill combined on one page with tear line
+  const printKitchenAndBill = () => {
+    printTriggered.current = false;
+    setPrintMode("combined");
+  };
+
+  // Edit order: load items back to cart, navigate to cart
+  const handleEditOrder = () => {
+    if (!order) return;
+    const cartItems = order.items.map((item) => ({
+      ...item,
+      key: `${item.id}-${item.variant}`,
+    }));
+    setCart(cartItems);
+    if (order.discountPercent) {
+      setDiscount(order.discountPercent);
+    }
+    sessionStorage.setItem("editingOrderId", orderId);
+    router.push("/cart");
+  };
+
+  // Kitchen Slip Component (reusable)
+  const KitchenSlip = () => (
+    <div className="receipt receipt-kitchen-content">
+      <div className="receipt-header">
+        <h2>🍳 KITCHEN ORDER</h2>
+        <p>{SHOP_NAME}</p>
+      </div>
+      <div className="receipt-divider" />
+      <div className="receipt-info">
+        <div className="receipt-row">
+          <span>Order</span>
+          <span className="order-id" style={{ fontWeight: 700 }}>
+            {order?.dailyOrderNumber && `#${order.dailyOrderNumber} · `}{orderId}
+          </span>
+        </div>
+        <div className="receipt-row">
+          <span>Customer</span>
+          <span>{order?.customer?.name || "—"}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Time</span>
+          <span>{order?.time || new Date().toLocaleTimeString("en-IN")}</span>
+        </div>
+      </div>
+      <div className="receipt-divider" />
+      <div className="receipt-items">
+        <div className="receipt-items-header" style={{ gridTemplateColumns: "1fr 40px" }}>
+          <span>Item</span>
+          <span>Qty</span>
+        </div>
+        {order?.items?.map((item, i) => (
+          <div className="receipt-item-row" key={i} style={{ gridTemplateColumns: "1fr 40px" }}>
+            <span className="receipt-item-name">
+              {item.name}
+              <small> ({item.variant})</small>
+            </span>
+            <span style={{ textAlign: "center" }}>×{item.qty}</span>
+          </div>
+        ))}
+      </div>
+      <div className="receipt-divider" />
+      <div className="receipt-footer">
+        <p style={{ fontWeight: 600 }}>Total Items: {order?.items?.reduce((s, i) => s + i.qty, 0) || 0}</p>
+      </div>
+    </div>
+  );
+
+  // Full Bill Component (reusable)
+  const FullBill = () => (
+    <div className="receipt receipt-bill-content">
+      <div className="receipt-header">
+        <h2>🥡 {SHOP_NAME}</h2>
+        <p>{SHOP_TAGLINE}</p>
+        <p className="receipt-address">{SHOP_ADDRESS}</p>
+        <p className="receipt-address">📞 {SHOP_PHONE} | Enquiry: {SHOP_ENQUIRY}</p>
+      </div>
+
+      <div className="receipt-divider" />
+
+      <div className="receipt-info">
+        <div className="receipt-row">
+          <span>Order No</span>
+          <span className="order-id" style={{ fontWeight: 700 }}>
+            {order?.dailyOrderNumber && `#${order.dailyOrderNumber} · `}{orderId}
+          </span>
+        </div>
+        <div className="receipt-row">
+          <span>Date & Time</span>
+          <span>{order?.time || new Date().toLocaleString("en-IN")}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Customer</span>
+          <span style={{ fontWeight: 600 }}>{order?.customer?.name || "—"}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Phone</span>
+          <span>{order?.customer?.phone || "—"}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Payment</span>
+          <span style={{ fontWeight: 600 }}>
+            {method === "Split"
+              ? "💳 Split"
+              : method === "Unpaid"
+                ? "⏳ Unpaid"
+                : method === "UPI" ? "📱 UPI" : "💵 Cash"}
+          </span>
+        </div>
+        {method === "Split" && order?.cashAmount > 0 && (
+          <>
+            <div className="receipt-row">
+              <span>  └ Cash</span>
+              <span>₹{order.cashAmount}</span>
+            </div>
+            <div className="receipt-row">
+              <span>  └ UPI</span>
+              <span>₹{order.upiAmount}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="receipt-divider" />
+
+      <div className="receipt-items">
+        <div className="receipt-items-header">
+          <span>Item</span>
+          <span>Qty</span>
+          <span>Price</span>
+        </div>
+        {order?.items?.map((item, i) => (
+          <div className="receipt-item-row" key={i}>
+            <span className="receipt-item-name">
+              {item.name}
+              <small> ({item.variant})</small>
+            </span>
+            <span>×{item.qty}</span>
+            <span>₹{item.price * item.qty}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="receipt-divider" />
+
+      {order?.discountPercent > 0 && order?.discountAmount > 0 && (
+        <>
+          <div className="receipt-row">
+            <span>Subtotal</span>
+            <span>₹{order.subtotal}</span>
+          </div>
+          <div className="receipt-row" style={{ color: "var(--green)" }}>
+            <span>🏷️ Discount ({order.discountPercent}%)</span>
+            <span>−₹{order.discountAmount}</span>
+          </div>
+        </>
+      )}
+
+      <div className="receipt-total">
+        <span>TOTAL</span>
+        <span>₹{order?.total || "—"}</span>
+      </div>
+
+      <div className="receipt-footer">
+        <p>Thank you! Visit again 🙏</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="success-page">
-      <div className="success-icon">✅</div>
-      <h1>Order Placed!</h1>
+      <div className="success-icon no-print">✅</div>
+      <h1 className="no-print">Order Placed!</h1>
 
-      {/* Printable Receipt */}
-      <div className="receipt" ref={receiptRef} id="receipt">
-        <div className="receipt-header">
-          <h2>🥡 ROLL BOX</h2>
-          <p>Eat Healthy. Be Healthy.</p>
-        </div>
+      {/* Print Container — what actually gets printed */}
+      <div className="print-container">
+        {/* Kitchen slip: shown when printMode is 'kitchen' or 'combined' */}
+        {(printMode === "kitchen" || printMode === "combined") && <KitchenSlip />}
 
-        <div className="receipt-divider" />
-
-        <div className="receipt-info">
-          <div className="receipt-row">
-            <span>Order ID</span>
-            <span className="order-id">{orderId}</span>
+        {/* Tear line: only for combined mode */}
+        {printMode === "combined" && (
+          <div className="tear-line">
+            <span>✂ - - - - - - - - - - - - - - - - - - - - - - ✂</span>
           </div>
-          <div className="receipt-row">
-            <span>Date & Time</span>
-            <span>{order?.time || new Date().toLocaleString("en-IN")}</span>
-          </div>
-          <div className="receipt-row">
-            <span>Customer</span>
-            <span>{order?.customer?.name || "—"}</span>
-          </div>
-          <div className="receipt-row">
-            <span>Phone</span>
-            <span>{order?.customer?.phone || "—"}</span>
-          </div>
-          <div className="receipt-row">
-            <span>Payment</span>
-            <span style={{ color: method === "UPI" ? "var(--green)" : "var(--gold)", fontWeight: 600 }}>
-              {method === "UPI" ? "📱 UPI" : "💵 Cash"}
-            </span>
-          </div>
-        </div>
+        )}
 
-        <div className="receipt-divider" />
-
-        <div className="receipt-items">
-          <div className="receipt-items-header">
-            <span>Item</span>
-            <span>Qty</span>
-            <span>Price</span>
-          </div>
-          {order?.items?.map((item, i) => (
-            <div className="receipt-item-row" key={i}>
-              <span className="receipt-item-name">
-                {item.name}
-                <small> ({item.variant})</small>
-              </span>
-              <span>×{item.qty}</span>
-              <span>₹{item.price * item.qty}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="receipt-divider" />
-
-        <div className="receipt-total">
-          <span>TOTAL</span>
-          <span>₹{order?.total || "—"}</span>
-        </div>
-
-        <div className="receipt-footer">
-          <p>Thank you! Visit again 🙏</p>
-        </div>
+        {/* Full bill: shown when printMode is 'combined' or null (default screen view) */}
+        {(printMode === "combined" || !printMode) && <FullBill />}
       </div>
 
       {/* Action Buttons — hidden in print */}
       <div className="receipt-actions no-print">
-        <button className="btn-primary" onClick={handlePrint} style={{ flex: 1 }}>
-          🖨️ Print Bill
+        <button className="btn-kitchen" onClick={printKitchenOnly} style={{ flex: 1 }}>
+          🍳 Print to Kitchen
         </button>
+        <button className="btn-primary" onClick={printKitchenAndBill} style={{ flex: 1 }}>
+          🖨️ Kitchen + Bill
+        </button>
+      </div>
+
+      <div className="receipt-actions no-print" style={{ marginTop: "0.5rem" }}>
+        <button className="btn-edit-order" onClick={handleEditOrder} style={{ flex: 1 }}>
+          ✏️ Edit Order
+        </button>
+
+        <button
+          className="btn-secondary"
+          onClick={() => {
+            const billUrl = `${window.location.origin}/bill/${orderId}`;
+            navigator.clipboard.writeText(billUrl).then(() => {
+              alert("Bill link copied! Share it with the customer.");
+            }).catch(() => {
+              prompt("Copy this link:", billUrl);
+            });
+          }}
+          style={{ flex: 1, justifyContent: "center" }}
+        >
+          🔗 Copy Bill Link
+        </button>
+      </div>
+
+      <div className="receipt-actions no-print" style={{ marginTop: "0.5rem" }}>
+        {order?.customer?.phone && (
+          <button
+            className="btn-sms"
+            onClick={() => {
+              const billUrl = `${window.location.origin}/bill/${orderId}`;
+              let smsText = `Hi ${order.customer.name}, your order at ${SHOP_NAME} is confirmed! 🥡\n`;
+              smsText += `Order ID: ${orderId}\n`;
+              smsText += `Total: ₹${order.total}\n`;
+              smsText += `View your bill: ${billUrl}\n`;
+              smsText += `Thank you! Visit again 🙏`;
+
+              let cleanPhone = order.customer.phone.replace(/\D/g, "");
+              if (cleanPhone.startsWith("0")) cleanPhone = cleanPhone.slice(1);
+              if (!cleanPhone.startsWith("91") && cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+              window.open(`sms:+${cleanPhone}?body=${encodeURIComponent(smsText)}`, "_self");
+            }}
+            style={{ flex: 1 }}
+          >
+            💬 SMS to Customer
+          </button>
+        )}
 
         {order?.customer?.phone && (
           <button
@@ -137,10 +336,12 @@ function ReceiptContent() {
             onClick={() => sendWhatsApp(order.customer.phone)}
             style={{ flex: 1 }}
           >
-            📲 Send to Customer
+            📲 WhatsApp Customer
           </button>
         )}
+      </div>
 
+      <div className="receipt-actions no-print" style={{ marginTop: "0.5rem" }}>
         {ownerPhone && (
           <button
             className="btn-whatsapp owner"
@@ -150,9 +351,7 @@ function ReceiptContent() {
             📲 Send to Owner
           </button>
         )}
-      </div>
 
-      <div className="receipt-actions no-print" style={{ marginTop: "0.5rem" }}>
         <Link href="/menu" className="btn-primary" style={{ flex: 1, justifyContent: "center" }}>
           🍽️ New Order
         </Link>

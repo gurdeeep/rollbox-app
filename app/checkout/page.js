@@ -1,61 +1,116 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "../context/CartContext";
 
 export default function CheckoutPage() {
-  const { cart, totalPrice, clearCart } = useCart();
+  const { cart, totalPrice, subtotal, discountPercent, discountAmount, clearCart } = useCart();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showQR, setShowQR] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "" });
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [splitCash, setSplitCash] = useState("");
+  const [splitUpi, setSplitUpi] = useState("");
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handlePlaceOrder = (e) => {
-    e.preventDefault();
-    if (!form.name || !form.phone) return alert("Please enter customer name and phone number");
-    if (cart.length === 0) return alert("No items in the order");
-
-    if (paymentMethod === "upi") {
-      setShowQR(true);
-      return;
+  // Auto-fill the other split field
+  const handleSplitCash = (val) => {
+    setSplitCash(val);
+    const num = parseFloat(val) || 0;
+    if (num >= 0 && num <= totalPrice) {
+      setSplitUpi(String(totalPrice - num));
     }
-
-    placeOrder("Cash");
+  };
+  const handleSplitUpi = (val) => {
+    setSplitUpi(val);
+    const num = parseFloat(val) || 0;
+    if (num >= 0 && num <= totalPrice) {
+      setSplitCash(String(totalPrice - num));
+    }
   };
 
-  const placeOrder = async (method) => {
+  const handlePlaceOrder = (e) => {
+    e.preventDefault();
+    if (!form.name) return alert("Please enter customer name");
+    if (cart.length === 0) return alert("No items in the order");
+
+    if (paymentMethod === "split") {
+      const cash = parseFloat(splitCash) || 0;
+      const upi = parseFloat(splitUpi) || 0;
+      if (Math.round(cash + upi) !== totalPrice) {
+        return alert(`Cash (₹${cash}) + UPI (₹${upi}) must equal ₹${totalPrice}`);
+      }
+      placeOrder("Split", cash, upi);
+    } else {
+      const methodMap = { upi: "UPI", unpaid: "Unpaid", cash: "Cash" };
+      placeOrder(methodMap[paymentMethod] || "Cash");
+    }
+  };
+
+  const placeOrder = async (method, cashAmount = 0, upiAmount = 0) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer: form,
-          items: cart,
-          total: totalPrice,
-          paymentMethod: method,
-        }),
-      });
+      const editingOrderId = sessionStorage.getItem("editingOrderId");
+
+      let res;
+      let finalOrderId;
+
+      if (editingOrderId) {
+        res = await fetch("/api/orders", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: editingOrderId,
+            items: cart,
+            total: totalPrice,
+            subtotal,
+            discountPercent,
+            discountAmount,
+          }),
+        });
+        finalOrderId = editingOrderId;
+        sessionStorage.removeItem("editingOrderId");
+      } else {
+        res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer: form,
+            items: cart,
+            total: totalPrice,
+            paymentMethod: method,
+            subtotal,
+            discountPercent,
+            discountAmount,
+            cashAmount: method === "Split" ? cashAmount : (method === "Cash" ? totalPrice : 0),
+            upiAmount: method === "Split" ? upiAmount : (method === "UPI" ? totalPrice : 0),
+          }),
+        });
+      }
+
       const data = await res.json();
 
       if (data.success) {
-        // Store order details for the receipt page
+        const usedOrderId = finalOrderId || data.orderId;
         const orderData = {
-          orderId: data.orderId,
+          orderId: usedOrderId,
+          dailyOrderNumber: data.dailyOrderNumber || null,
           method,
+          cashAmount: method === "Split" ? cashAmount : 0,
+          upiAmount: method === "Split" ? upiAmount : 0,
           customer: form,
           items: [...cart],
+          subtotal,
+          discountPercent,
+          discountAmount,
           total: totalPrice,
           time: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
         };
         sessionStorage.setItem("lastOrder", JSON.stringify(orderData));
         clearCart();
-        router.push(`/order-success?id=${data.orderId}&method=${encodeURIComponent(method)}`);
+        router.push(`/order-success?id=${usedOrderId}&method=${encodeURIComponent(method)}`);
       } else {
         alert("Failed to place order. Please try again.");
         setLoading(false);
@@ -65,11 +120,6 @@ export default function CheckoutPage() {
       alert("Something went wrong. Please try again.");
       setLoading(false);
     }
-  };
-
-  const handleUPIDone = () => {
-    setShowQR(false);
-    placeOrder("UPI");
   };
 
   if (cart.length === 0) {
@@ -84,38 +134,23 @@ export default function CheckoutPage() {
     );
   }
 
+  const btnLabel = () => {
+    if (loading) return "Placing Order...";
+    if (paymentMethod === "split") return `Place Order – ₹${totalPrice} (Split)`;
+    if (paymentMethod === "unpaid") return `Place Order – ₹${totalPrice} (Unpaid)`;
+    return `Place Order – ₹${totalPrice} (${paymentMethod === "upi" ? "UPI" : "Cash"})`;
+  };
+
   return (
-    <>
-      {/* UPI QR Modal */}
-      {showQR && (
-        <div className="qr-overlay" onClick={() => setShowQR(false)}>
-          <div className="qr-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="qr-close" onClick={() => setShowQR(false)}>✕</button>
-            <h3 style={{ marginBottom: "0.25rem", fontSize: "1.3rem" }}>Scan & Pay</h3>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Customer pays <span style={{ color: "var(--accent-light)", fontWeight: 700 }}>₹{totalPrice}</span>
-            </p>
-            <div className="qr-image-wrapper">
-              <Image src="/upi-qr.png" alt="UPI QR Code" width={280} height={280} style={{ borderRadius: "12px" }} />
-            </div>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", margin: "0.75rem 0 1.25rem" }}>
-              After payment is confirmed, tap below
-            </p>
-            <button className="pay-btn" onClick={handleUPIDone} disabled={loading}>
-              {loading ? "Placing Order..." : "✅ Payment Received – Place Order"}
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="checkout-page">
+      <div className="section-header">
+        <h2>🧾 Finalize Order</h2>
+        <p>Enter customer details and payment method</p>
+      </div>
 
-      <div className="checkout-page">
-        <div className="section-header">
-          <h2>🧾 Finalize Order</h2>
-          <p>Enter customer details and payment method</p>
-        </div>
-
-        {/* Order items recap */}
-        <div className="cart-summary" style={{ marginBottom: "1.5rem" }}>
+      <div className="checkout-grid">
+        {/* Left: Order items recap */}
+        <div className="cart-summary">
           <h3>Order Items</h3>
           {cart.map((item) => (
             <div className="summary-row" key={item.key}>
@@ -123,12 +158,20 @@ export default function CheckoutPage() {
               <span>₹{item.price * item.qty}</span>
             </div>
           ))}
+          <div className="summary-row">
+            <span>Subtotal</span><span>₹{subtotal}</span>
+          </div>
+          {discountPercent > 0 && (
+            <div className="summary-row discount-row">
+              <span>Discount ({discountPercent}%)</span><span>−₹{discountAmount}</span>
+            </div>
+          )}
           <div className="summary-row total">
             <span>Total</span><span>₹{totalPrice}</span>
           </div>
         </div>
 
-        {/* Customer form — simplified for counter use */}
+        {/* Right: Customer form */}
         <form className="checkout-form" onSubmit={handlePlaceOrder}>
           <h3 style={{ marginBottom: "1.25rem" }}>Customer Details</h3>
           <div className="form-group">
@@ -136,8 +179,8 @@ export default function CheckoutPage() {
             <input id="name" name="name" value={form.name} onChange={handleChange} required placeholder="Customer name" autoComplete="off" />
           </div>
           <div className="form-group">
-            <label htmlFor="phone">Phone Number *</label>
-            <input id="phone" name="phone" value={form.phone} onChange={handleChange} required placeholder="+91 XXXXX XXXXX" type="tel" />
+            <label htmlFor="phone">Phone Number</label>
+            <input id="phone" name="phone" value={form.phone} onChange={handleChange} placeholder="+91 XXXXX XXXXX (optional)" type="tel" />
           </div>
 
           {/* Payment Method Selection */}
@@ -145,42 +188,50 @@ export default function CheckoutPage() {
             <label>Payment Method</label>
             <div className="payment-methods">
               <label className={`payment-option ${paymentMethod === "cash" ? "selected" : ""}`}>
-                <input
-                  type="radio" name="payment" value="cash"
-                  checked={paymentMethod === "cash"}
-                  onChange={() => setPaymentMethod("cash")}
-                />
+                <input type="radio" name="payment" value="cash" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} />
                 <span className="payment-icon">💵</span>
-                <div>
-                  <strong>Cash</strong>
-                  <small>Customer pays in cash</small>
-                </div>
+                <div><strong>Cash</strong><small>Customer pays in cash</small></div>
               </label>
               <label className={`payment-option ${paymentMethod === "upi" ? "selected" : ""}`}>
-                <input
-                  type="radio" name="payment" value="upi"
-                  checked={paymentMethod === "upi"}
-                  onChange={() => setPaymentMethod("upi")}
-                />
+                <input type="radio" name="payment" value="upi" checked={paymentMethod === "upi"} onChange={() => setPaymentMethod("upi")} />
                 <span className="payment-icon">📱</span>
-                <div>
-                  <strong>UPI</strong>
-                  <small>Customer scans QR to pay</small>
-                </div>
+                <div><strong>UPI</strong><small>Customer pays via UPI</small></div>
+              </label>
+              <label className={`payment-option ${paymentMethod === "unpaid" ? "selected" : ""}`}>
+                <input type="radio" name="payment" value="unpaid" checked={paymentMethod === "unpaid"} onChange={() => setPaymentMethod("unpaid")} />
+                <span className="payment-icon">⏳</span>
+                <div><strong>Unpaid</strong><small>Customer pays later</small></div>
+              </label>
+              <label className={`payment-option ${paymentMethod === "split" ? "selected" : ""}`}>
+                <input type="radio" name="payment" value="split" checked={paymentMethod === "split"} onChange={() => { setPaymentMethod("split"); setSplitCash(String(totalPrice)); setSplitUpi("0"); }} />
+                <span className="payment-icon">💳</span>
+                <div><strong>Split</strong><small>Part cash, part UPI</small></div>
               </label>
             </div>
           </div>
 
+          {/* Split payment inputs */}
+          {paymentMethod === "split" && (
+            <div className="split-inputs">
+              <div className="split-field">
+                <label>💵 Cash Amount</label>
+                <input type="number" min="0" max={totalPrice} value={splitCash} onChange={(e) => handleSplitCash(e.target.value)} placeholder="0" />
+              </div>
+              <div className="split-field">
+                <label>📱 UPI Amount</label>
+                <input type="number" min="0" max={totalPrice} value={splitUpi} onChange={(e) => handleSplitUpi(e.target.value)} placeholder="0" />
+              </div>
+              <div className="split-total">
+                Total: ₹{(parseFloat(splitCash) || 0) + (parseFloat(splitUpi) || 0)} / ₹{totalPrice}
+              </div>
+            </div>
+          )}
+
           <button type="submit" className="pay-btn" disabled={loading}>
-            {loading
-              ? "Placing Order..."
-              : paymentMethod === "upi"
-                ? `Show QR – ₹${totalPrice}`
-                : `Place Order – ₹${totalPrice} (Cash)`
-            }
+            {btnLabel()}
           </button>
         </form>
       </div>
-    </>
+    </div>
   );
 }
