@@ -917,6 +917,10 @@ ul, ol { list-style: none; }
 .btn-sms:hover { background: #2862d0; transform: translateY(-1px); }
 
 /* Print — compact 58mm thermal receipt style */
+
+/* Hide slips on screen based on view mode */
+.screen-hidden { display: none; }
+
 @media print {
   .no-print, .navbar, .footer, .floating-cart { display: none !important; }
   body { background: #fff; color: #000; font-size: 12px; margin: 0; padding: 0; }
@@ -941,6 +945,10 @@ ul, ol { list-style: none; }
   .receipt-footer p { font-size: 10px; font-weight: 600; }
   /* Print container */
   .print-container { max-width: 58mm; }
+  /* Show all print-slips in print but hide based on data-print-target */
+  .print-slip { display: block !important; }
+  .print-container[data-print-target="kitchen"] .print-slip-bill { display: none !important; }
+  .print-container[data-print-target="bill"] .print-slip-kitchen { display: none !important; }
   /* Tear line */
   .tear-line {
     display: block !important; width: 100%; text-align: center;

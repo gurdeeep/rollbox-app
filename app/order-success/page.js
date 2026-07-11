@@ -17,8 +17,9 @@ function ReceiptContent() {
   const orderId = params.get("id") || "N/A";
   const method = params.get("method") || "Cash";
   const [order, setOrder] = useState(null);
-  const [printMode, setPrintMode] = useState(null); // null, 'kitchen', 'combined'
-  const printTriggered = useRef(false);
+  const [viewMode, setViewMode] = useState("bill"); // screen view: 'kitchen' or 'bill'
+  const [printTarget, setPrintTarget] = useState("kitchen"); // what to print: 'kitchen' or 'bill'
+  const autoPrintDone = useRef(false);
 
   useEffect(() => {
     try {
@@ -27,21 +28,16 @@ function ReceiptContent() {
     } catch {}
   }, []);
 
-  // Use effect to trigger print AFTER React has re-rendered with the new printMode
+  // Auto-print kitchen slip once when order loads
   useEffect(() => {
-    if (printMode && !printTriggered.current) {
-      printTriggered.current = true;
-      // Wait for browser to paint the new layout
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          window.print();
-          // Reset after print dialog closes
-          setPrintMode(null);
-          printTriggered.current = false;
-        });
-      });
+    if (order && !autoPrintDone.current) {
+      autoPrintDone.current = true;
+      setPrintTarget("kitchen");
+      setTimeout(() => {
+        window.print();
+      }, 600);
     }
-  }, [printMode]);
+  }, [order]);
 
   const ownerPhone = process.env.NEXT_PUBLIC_OWNER_PHONE || "";
 
@@ -79,16 +75,16 @@ function ReceiptContent() {
     window.open(`https://wa.me/${cleanPhone}?text=${text}`, "_blank");
   };
 
-  // Print Kitchen Slip only
-  const printKitchenOnly = () => {
-    printTriggered.current = false;
-    setPrintMode("kitchen");
+  // Print kitchen slip
+  const printKitchen = () => {
+    setPrintTarget("kitchen");
+    setTimeout(() => window.print(), 50);
   };
 
-  // Print Kitchen + Bill combined on one page with tear line
-  const printKitchenAndBill = () => {
-    printTriggered.current = false;
-    setPrintMode("combined");
+  // Print customer bill
+  const printBill = () => {
+    setPrintTarget("bill");
+    setTimeout(() => window.print(), 50);
   };
 
   // Edit order: load items back to cart, navigate to cart
@@ -259,30 +255,39 @@ function ReceiptContent() {
       <div className="success-icon no-print">✅</div>
       <h1 className="no-print">Order Placed!</h1>
 
-      {/* Print Container — what actually gets printed */}
-      <div className="print-container">
-        {/* Kitchen slip: shown when printMode is 'kitchen' or 'combined' */}
-        {(printMode === "kitchen" || printMode === "combined") && <KitchenSlip />}
-
-        {/* Tear line: only for combined mode */}
-        {printMode === "combined" && (
-          <div className="tear-line">
-            <span>✂ - - - - - - - - - - - - - - - - - - - - - - ✂</span>
-          </div>
-        )}
-
-        {/* Full bill: shown when printMode is 'combined' or null (default screen view) */}
-        {(printMode === "combined" || !printMode) && <FullBill />}
+      {/* Print Container — both always rendered, CSS controls print visibility */}
+      <div className="print-container" data-print-target={printTarget}>
+        {/* Kitchen slip: hidden on screen, visible in print when target=kitchen */}
+        <div className={`print-slip print-slip-kitchen ${viewMode === "kitchen" ? "" : "screen-hidden"}`}>
+          <KitchenSlip />
+        </div>
+        {/* Customer bill: hidden on screen when viewing kitchen, visible in print when target=bill */}
+        <div className={`print-slip print-slip-bill ${viewMode === "bill" ? "" : "screen-hidden"}`}>
+          <FullBill />
+        </div>
       </div>
 
       {/* Action Buttons — hidden in print */}
       <div className="receipt-actions no-print">
-        <button className="btn-kitchen" onClick={printKitchenOnly} style={{ flex: 1 }}>
-          🍳 Print to Kitchen
-        </button>
-        <button className="btn-primary" onClick={printKitchenAndBill} style={{ flex: 1 }}>
-          🖨️ Kitchen + Bill
-        </button>
+        {viewMode === "kitchen" ? (
+          <>
+            <button className="btn-kitchen" onClick={printKitchen} style={{ flex: 1 }}>
+              🍳 Print Kitchen
+            </button>
+            <button className="btn-primary" onClick={() => setViewMode("bill")} style={{ flex: 1 }}>
+              🧾 Show Bill
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn-primary" onClick={printBill} style={{ flex: 1 }}>
+              🖨️ Print Bill
+            </button>
+            <button className="btn-kitchen" onClick={() => setViewMode("kitchen")} style={{ flex: 1 }}>
+              🍳 Kitchen Slip
+            </button>
+          </>
+        )}
       </div>
 
       <div className="receipt-actions no-print" style={{ marginTop: "0.5rem" }}>
